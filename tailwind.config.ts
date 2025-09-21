@@ -47,21 +47,28 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        sidebar: {
-          DEFAULT: "hsl(var(--sidebar-background))",
-          foreground: "hsl(var(--sidebar-foreground))",
-          primary: "hsl(var(--sidebar-primary))",
-          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
-          accent: "hsl(var(--sidebar-accent))",
-          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
-          border: "hsl(var(--sidebar-border))",
-          ring: "hsl(var(--sidebar-ring))",
+        // Innovation Agent Colors
+        agent: {
+          retrieval: "hsl(var(--agent-retrieval))",
+          generation: "hsl(var(--agent-generation))",
+          evaluation: "hsl(var(--agent-evaluation))",
+          synthesis: "hsl(var(--agent-synthesis))",
+        },
+        status: {
+          processing: "hsl(var(--status-processing))",
+          complete: "hsl(var(--status-complete))",
+          error: "hsl(var(--status-error))",
         },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      backgroundImage: {
+        'gradient-innovation': 'var(--gradient-innovation)',
+        'gradient-neural': 'var(--gradient-neural)',
+        'gradient-data': 'var(--gradient-data)',
       },
       keyframes: {
         "accordion-down": {
@@ -80,10 +87,28 @@ export default {
             height: "0",
           },
         },
+        "pulse-glow": {
+          from: { 
+            boxShadow: "0 0 20px hsl(217 91% 60% / 0.3)" 
+          },
+          to: { 
+            boxShadow: "0 0 40px hsl(217 91% 60% / 0.6)" 
+          },
+        },
+        "float": {
+          "0%, 100%": { 
+            transform: "translateY(0px)" 
+          },
+          "50%": { 
+            transform: "translateY(-10px)" 
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "pulse-glow": "pulse-glow 2s ease-in-out infinite alternate",
+        "float": "float 3s ease-in-out infinite",
       },
     },
   },
