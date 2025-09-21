@@ -6,6 +6,8 @@ import { SolutionsDashboard } from "@/components/SolutionsDashboard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Brain, Lightbulb, TrendingUp, Users, LogOut } from "lucide-react";
+import { createProblem, updateProblemStatus, createSolution, getSolutionsForProblem, Problem, Solution as DBSolution } from "@/lib/database";
+import { toast } from "sonner";
 
 export interface Solution {
   id: string;
@@ -22,66 +24,114 @@ export interface Solution {
 
 const Index = () => {
   const { user, signOut } = useAuth();
-  const [currentProblem, setCurrentProblem] = useState<string>("");
+  const [currentProblem, setCurrentProblem] = useState<Problem | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [solutions, setSolutions] = useState<Solution[]>([]);
   const [workflowStage, setWorkflowStage] = useState<'input' | 'processing' | 'results'>('input');
 
-  const handleProblemSubmit = async (problem: string) => {
-    setCurrentProblem(problem);
-    setWorkflowStage('processing');
-    setIsProcessing(true);
-    
-    // Simulate agent workflow processing
-    setTimeout(() => {
-      const mockSolutions: Solution[] = [
-        {
-          id: "sol-1",
-          title: "Ocean Plastic Collection Networks",
-          description: "Deploy autonomous underwater drones with collection nets that work in coordination to gather plastic debris from ocean gyres.",
-          feasibilityScore: 8.2,
-          costScore: 6.5,
-          sustainabilityScore: 9.1,
-          overallScore: 7.9,
-          category: "Technology",
-          estimatedImpact: "Could remove 10,000 tons/year",
-          timeframe: "2-3 years"
-        },
-        {
-          id: "sol-2", 
-          title: "Plastic-Eating Enzyme Distribution",
-          description: "Scale production and deployment of engineered enzymes that break down PET plastics in marine environments.",
-          feasibilityScore: 7.1,
-          costScore: 8.0,
-          sustainabilityScore: 8.8,
-          overallScore: 8.0,
-          category: "Biotechnology",
-          estimatedImpact: "Accelerate natural breakdown by 600%",
-          timeframe: "3-5 years"
-        },
-        {
-          id: "sol-3",
-          title: "Incentivized Collection Apps",
-          description: "Mobile platform that rewards users with cryptocurrency for collecting and properly disposing of ocean plastic.",
-          feasibilityScore: 9.0,
-          costScore: 9.2,
-          sustainabilityScore: 7.5,
-          overallScore: 8.6,
-          category: "Social Innovation", 
-          estimatedImpact: "Engage 1M+ collectors globally",
-          timeframe: "6-12 months"
-        }
-      ];
+  const handleProblemSubmit = async (problemDescription: string) => {
+    try {
+      // Save problem to database
+      const problem = await createProblem(problemDescription);
+      setCurrentProblem(problem);
+      setWorkflowStage('processing');
+      setIsProcessing(true);
       
-      setSolutions(mockSolutions);
-      setIsProcessing(false);
-      setWorkflowStage('results');
-    }, 8000);
+      // Update problem status to processing
+      await updateProblemStatus(problem.id, 'processing');
+      
+      // Simulate agent workflow processing
+      setTimeout(async () => {
+        try {
+          // Create mock solutions and save them to database
+          const mockSolutionsData = [
+            {
+              title: "Ocean Plastic Collection Networks",
+              description: "Deploy autonomous underwater drones with collection nets that work in coordination to gather plastic debris from ocean gyres.",
+              feasibilityScore: 82,
+              costEstimate: "$2.5M initial investment",
+              sustainabilityScore: 91,
+              innovationScore: 79,
+              agentType: "technology"
+            },
+            {
+              title: "Plastic-Eating Enzyme Distribution",
+              description: "Scale production and deployment of engineered enzymes that break down PET plastics in marine environments.",
+              feasibilityScore: 71,
+              costEstimate: "$1.8M development cost",
+              sustainabilityScore: 88,
+              innovationScore: 80,
+              agentType: "biotechnology"
+            },
+            {
+              title: "Incentivized Collection Apps",
+              description: "Mobile platform that rewards users with cryptocurrency for collecting and properly disposing of ocean plastic.",
+              feasibilityScore: 90,
+              costEstimate: "$500K development cost",
+              sustainabilityScore: 75,
+              innovationScore: 86,
+              agentType: "social_innovation"
+            }
+          ];
+
+          // Save solutions to database
+          const dbSolutions = await Promise.all(
+            mockSolutionsData.map(sol => 
+              createSolution(
+                problem.id,
+                sol.title,
+                sol.description,
+                sol.feasibilityScore,
+                sol.costEstimate,
+                sol.sustainabilityScore,
+                sol.innovationScore,
+                sol.agentType
+              )
+            )
+          );
+
+          // Convert to frontend format
+          const frontendSolutions: Solution[] = dbSolutions.map((sol, index) => ({
+            id: sol.id,
+            title: sol.title,
+            description: sol.description,
+            feasibilityScore: sol.feasibility_score / 10,
+            costScore: mockSolutionsData[index].feasibilityScore >= 80 ? 9.2 : 
+                      mockSolutionsData[index].feasibilityScore >= 70 ? 8.0 : 6.5,
+            sustainabilityScore: sol.sustainability_score / 10,
+            overallScore: (sol.feasibility_score + sol.sustainability_score + sol.innovation_score) / 30,
+            category: sol.agent_type === 'technology' ? 'Technology' : 
+                     sol.agent_type === 'biotechnology' ? 'Biotechnology' : 'Social Innovation',
+            estimatedImpact: index === 0 ? "Could remove 10,000 tons/year" :
+                           index === 1 ? "Accelerate natural breakdown by 600%" :
+                           "Engage 1M+ collectors globally",
+            timeframe: index === 0 ? "2-3 years" : index === 1 ? "3-5 years" : "6-12 months"
+          }));
+          
+          setSolutions(frontendSolutions);
+          setIsProcessing(false);
+          setWorkflowStage('results');
+          
+          // Update problem status to completed
+          await updateProblemStatus(problem.id, 'completed');
+          
+          toast.success("Analysis complete! Generated " + frontendSolutions.length + " solutions.");
+        } catch (error) {
+          console.error('Error creating solutions:', error);
+          toast.error("Failed to save solutions. Please try again.");
+          setIsProcessing(false);
+        }
+      }, 8000);
+      
+    } catch (error) {
+      console.error('Error creating problem:', error);
+      toast.error("Failed to save problem. Please try again.");
+    }
   };
 
   const handleReset = () => {
     setWorkflowStage('input');
-    setCurrentProblem("");
+    setCurrentProblem(null);
     setSolutions([]);
     setIsProcessing(false);
   };
@@ -156,7 +206,7 @@ const Index = () => {
           <div className="space-y-8">
             <div className="text-center">
               <h2 className="text-2xl font-bold mb-4">Processing Problem Statement</h2>
-              <p className="text-muted-foreground mb-8">"{currentProblem}"</p>
+              <p className="text-muted-foreground mb-8">"{currentProblem?.description}"</p>
               <Button variant="neural" onClick={handleReset}>
                 Start New Analysis
               </Button>
@@ -169,7 +219,7 @@ const Index = () => {
           <div className="space-y-8">
             <div className="text-center">
               <h2 className="text-2xl font-bold mb-4">Generated Solutions</h2>
-              <p className="text-muted-foreground mb-4">Problem: "{currentProblem}"</p>
+              <p className="text-muted-foreground mb-4">Problem: "{currentProblem?.description}"</p>
               <Button variant="neural" onClick={handleReset}>
                 Analyze New Problem
               </Button>

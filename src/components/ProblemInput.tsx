@@ -18,6 +18,7 @@ export const ProblemInput = ({ onSubmit }: ProblemInputProps) => {
     
     setIsSubmitting(true);
     await onSubmit(problem.trim());
+    setProblem(""); // Clear input after successful submission
     setIsSubmitting(false);
   };
 

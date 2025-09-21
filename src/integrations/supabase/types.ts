@@ -14,7 +14,89 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      problems: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string
+          id: string
+          status: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          status?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          status?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      solutions: {
+        Row: {
+          agent_type: string | null
+          cost_estimate: string | null
+          created_at: string
+          description: string
+          feasibility_score: number | null
+          id: string
+          innovation_score: number | null
+          problem_id: string
+          sustainability_score: number | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          agent_type?: string | null
+          cost_estimate?: string | null
+          created_at?: string
+          description: string
+          feasibility_score?: number | null
+          id?: string
+          innovation_score?: number | null
+          problem_id: string
+          sustainability_score?: number | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          agent_type?: string | null
+          cost_estimate?: string | null
+          created_at?: string
+          description?: string
+          feasibility_score?: number | null
+          id?: string
+          innovation_score?: number | null
+          problem_id?: string
+          sustainability_score?: number | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solutions_problem_id_fkey"
+            columns: ["problem_id"]
+            isOneToOne: false
+            referencedRelation: "problems"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
