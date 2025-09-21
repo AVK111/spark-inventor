@@ -1,10 +1,11 @@
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { ProblemInput } from "@/components/ProblemInput";
 import { AgentWorkflow } from "@/components/AgentWorkflow";
 import { SolutionsDashboard } from "@/components/SolutionsDashboard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Brain, Lightbulb, TrendingUp, Users } from "lucide-react";
+import { Brain, Lightbulb, TrendingUp, Users, LogOut } from "lucide-react";
 
 export interface Solution {
   id: string;
@@ -20,6 +21,7 @@ export interface Solution {
 }
 
 const Index = () => {
+  const { user, signOut } = useAuth();
   const [currentProblem, setCurrentProblem] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [solutions, setSolutions] = useState<Solution[]>([]);
@@ -86,6 +88,19 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Header with sign out */}
+      <div className="absolute top-4 right-4 z-10">
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-muted-foreground">
+            Welcome, {user?.email}
+          </span>
+          <Button variant="outline" size="sm" onClick={signOut}>
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign Out
+          </Button>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-neural opacity-50" />
