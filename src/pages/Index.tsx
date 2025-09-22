@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Brain, Lightbulb, TrendingUp, Users, LogOut } from "lucide-react";
 import { createProblem, updateProblemStatus, createSolution, getSolutionsForProblem, Problem, Solution as DBSolution } from "@/lib/database";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface Solution {
   id: string;
@@ -40,73 +41,66 @@ const Index = () => {
       // Update problem status to processing
       await updateProblemStatus(problem.id, 'processing');
       
-      // Simulate agent workflow processing
-      setTimeout(async () => {
-        try {
-          // Create mock solutions and save them to database
-          const mockSolutionsData = [
-            {
-              title: "Ocean Plastic Collection Networks",
-              description: "Deploy autonomous underwater drones with collection nets that work in coordination to gather plastic debris from ocean gyres.",
-              feasibilityScore: 82,
-              costEstimate: "$2.5M initial investment",
-              sustainabilityScore: 91,
-              innovationScore: 79,
-              agentType: "technology"
-            },
-            {
-              title: "Plastic-Eating Enzyme Distribution",
-              description: "Scale production and deployment of engineered enzymes that break down PET plastics in marine environments.",
-              feasibilityScore: 71,
-              costEstimate: "$1.8M development cost",
-              sustainabilityScore: 88,
-              innovationScore: 80,
-              agentType: "biotechnology"
-            },
-            {
-              title: "Incentivized Collection Apps",
-              description: "Mobile platform that rewards users with cryptocurrency for collecting and properly disposing of ocean plastic.",
-              feasibilityScore: 90,
-              costEstimate: "$500K development cost",
-              sustainabilityScore: 75,
-              innovationScore: 86,
-              agentType: "social_innovation"
-            }
-          ];
+      // Generate real solutions using OpenAI
+      try {
+        console.log('Calling generate-solutions function...');
+        const { data: solutionsData, error: functionsError } = await supabase.functions.invoke('generate-solutions', {
+          body: { problemDescription }
+        });
 
-          // Save solutions to database
-          const dbSolutions = await Promise.all(
-            mockSolutionsData.map(sol => 
-              createSolution(
-                problem.id,
-                sol.title,
-                sol.description,
-                sol.feasibilityScore,
-                sol.costEstimate,
-                sol.sustainabilityScore,
-                sol.innovationScore,
-                sol.agentType
-              )
+        if (functionsError) {
+          console.error('Edge function error:', functionsError);
+          throw functionsError;
+        }
+
+        if (!solutionsData?.solutions) {
+          console.error('No solutions returned from API');
+          throw new Error('No solutions generated');
+        }
+
+        const generatedSolutions = solutionsData.solutions;
+
+        // Save AI-generated solutions to database
+        const dbSolutions = await Promise.all(
+          generatedSolutions.map((sol: any) => 
+            createSolution(
+              problem.id,
+              sol.title,
+              sol.description,
+              sol.feasibilityScore,
+              sol.costEstimate,
+              sol.sustainabilityScore,
+              sol.innovationScore,
+              sol.agentType
             )
-          );
+          )
+        );
 
-          // Convert to frontend format
-          const frontendSolutions: Solution[] = dbSolutions.map((sol, index) => ({
+        // Convert to frontend format
+        const frontendSolutions: Solution[] = dbSolutions.map((sol, index) => {
+          const categoryMap: Record<string, string> = {
+            'technology': 'Technology',
+            'biotechnology': 'Biotechnology', 
+            'social_innovation': 'Social Innovation',
+            'policy': 'Policy',
+            'business_model': 'Business Model'
+          };
+
+          return {
             id: sol.id,
             title: sol.title,
             description: sol.description,
             feasibilityScore: sol.feasibility_score / 10,
-            costScore: mockSolutionsData[index].feasibilityScore >= 80 ? 9.2 : 
-                      mockSolutionsData[index].feasibilityScore >= 70 ? 8.0 : 6.5,
+            costScore: sol.feasibility_score >= 80 ? 9.2 : 
+                      sol.feasibility_score >= 70 ? 8.0 : 6.5,
             sustainabilityScore: sol.sustainability_score / 10,
             overallScore: (sol.feasibility_score + sol.sustainability_score + sol.innovation_score) / 30,
-            category: sol.agent_type === 'technology' ? 'Technology' : 
-                     sol.agent_type === 'biotechnology' ? 'Biotechnology' : 'Social Innovation',
-            estimatedImpact: index === 0 ? "Could remove 10,000 tons/year" :
-                           index === 1 ? "Accelerate natural breakdown by 600%" :
-                           "Engage 1M+ collectors globally",
-            timeframe: index === 0 ? "2-3 years" : index === 1 ? "3-5 years" : "6-12 months"
-          }));
+            category: categoryMap[sol.agent_type] || 'Innovation',
+            estimatedImpact: `Potential high-impact solution (Score: ${sol.innovation_score})`,
+            timeframe: sol.feasibility_score >= 80 ? "1-2 years" : 
+                      sol.feasibility_score >= 60 ? "2-4 years" : "3-5 years"
+          };
+        });
           
           setSolutions(frontendSolutions);
           setIsProcessing(false);
@@ -115,13 +109,13 @@ const Index = () => {
           // Update problem status to completed
           await updateProblemStatus(problem.id, 'completed');
           
-          toast.success("Analysis complete! Generated " + frontendSolutions.length + " solutions.");
-        } catch (error) {
-          console.error('Error creating solutions:', error);
-          toast.error("Failed to save solutions. Please try again.");
-          setIsProcessing(false);
-        }
-      }, 8000);
+        toast.success("Analysis complete! Generated " + frontendSolutions.length + " AI-powered solutions.");
+      } catch (error) {
+        console.error('Error generating solutions:', error);
+        toast.error("Failed to generate solutions. Please try again.");
+        setIsProcessing(false);
+        setWorkflowStage('input');
+      }
       
     } catch (error) {
       console.error('Error creating problem:', error);
