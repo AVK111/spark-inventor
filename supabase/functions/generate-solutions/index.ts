@@ -32,7 +32,8 @@ serve(async (req) => {
 
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openAIApiKey) {
-      throw new Error('OpenAI API key not configured');
+      console.log('No OpenAI API key found, using fallback solutions');
+      return generateFallbackSolutions(problemDescription);
     }
 
     const prompt = `You are an expert innovation consultant with access to extensive research databases, academic literature, and industry reports. 
@@ -96,6 +97,13 @@ Return your response as a valid JSON object with this structure:
     if (!response.ok) {
       const errorText = await response.text();
       console.error('OpenAI API error:', response.status, errorText);
+      
+      // If quota exceeded or rate limited, use fallback
+      if (response.status === 429) {
+        console.log('OpenAI quota exceeded, using fallback solutions');
+        return generateFallbackSolutions(problemDescription);
+      }
+      
       throw new Error(`OpenAI API error: ${response.status} ${errorText}`);
     }
 
@@ -130,10 +138,21 @@ Return your response as a valid JSON object with this structure:
 
   } catch (error) {
     console.error('Error in generate-solutions function:', error);
+    
+    // If OpenAI fails for any reason, try fallback
+    if (error.message.includes('OpenAI') || error.message.includes('API')) {
+      try {
+        const { problemDescription } = await req.json();
+        return generateFallbackSolutions(problemDescription);
+      } catch (fallbackError) {
+        console.error('Fallback also failed:', fallbackError);
+      }
+    }
+    
     return new Response(
       JSON.stringify({ 
         error: error.message,
-        details: 'Failed to generate solutions. Please try again.'
+        details: 'Failed to generate solutions. Please check your OpenAI API credits or try again later.'
       }), 
       {
         status: 500,
@@ -141,4 +160,66 @@ Return your response as a valid JSON object with this structure:
       }
     );
   }
+});
+
+// Fallback function to generate mock solutions when OpenAI is unavailable
+function generateFallbackSolutions(problemDescription: string) {
+  console.log('Generating fallback solutions for:', problemDescription);
+  
+  const fallbackSolutions = [
+    {
+      title: "AI-Powered Analysis Solution",
+      description: "Leverage artificial intelligence and machine learning algorithms to analyze the problem systematically. This approach uses data-driven insights to identify patterns and propose evidence-based solutions.",
+      feasibilityScore: 85,
+      costEstimate: "$500K - $1M initial investment",
+      sustainabilityScore: 90,
+      innovationScore: 88,
+      agentType: "technology",
+      researchSources: ["IEEE AI Research Papers", "MIT Technology Review", "Nature Machine Intelligence"]
+    },
+    {
+      title: "Collaborative Platform Approach",
+      description: "Create a multi-stakeholder platform that brings together experts, communities, and resources. This solution focuses on building sustainable partnerships and knowledge sharing networks.",
+      feasibilityScore: 78,
+      costEstimate: "$200K - $500K initial investment",
+      sustainabilityScore: 95,
+      innovationScore: 75,
+      agentType: "social_innovation",
+      researchSources: ["Harvard Business Review", "Stanford Social Innovation Review", "McKinsey Quarterly"]
+    },
+    {
+      title: "Biotechnology Integration Solution",
+      description: "Apply cutting-edge biotechnology and bioengineering principles to address the core challenges. This solution combines biological systems with technological innovation for sustainable outcomes.",
+      feasibilityScore: 72,
+      costEstimate: "$1M - $3M initial investment",
+      sustainabilityScore: 92,
+      innovationScore: 94,
+      agentType: "biotechnology",
+      researchSources: ["Nature Biotechnology", "Cell", "Science Translational Medicine"]
+    }
+  ];
+
+  const literatureReview = {
+    searchTerms: ["innovation", "technology solutions", "sustainable development", "AI applications", problemDescription.split(' ').slice(0, 3).join(' ')],
+    keyFindings: "Research indicates that multi-modal approaches combining technology, social innovation, and biological systems yield the highest success rates for complex problem solving. Current trends show increasing emphasis on sustainability and stakeholder collaboration.",
+    researchSources: [
+      "MIT Technology Review - Innovation Trends 2024",
+      "Nature - Sustainable Technology Solutions",
+      "Harvard Business Review - Collaborative Innovation",
+      "IEEE Spectrum - AI Applications",
+      "Science - Biotechnology Advances",
+      "McKinsey Global Institute - Technology Impact",
+      "Stanford Research - Social Innovation",
+      "Cell Press - Bioengineering Solutions"
+    ]
+  };
+
+  return new Response(JSON.stringify({ 
+    solutions: fallbackSolutions, 
+    literatureReview,
+    note: "Demo solutions generated - OpenAI API unavailable. Please add credits to your OpenAI account for AI-powered solutions."
+  }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
 });

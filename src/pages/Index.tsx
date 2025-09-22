@@ -69,6 +69,11 @@ const Index = () => {
         const generatedSolutions = solutionsData.solutions;
         const literatureData = solutionsData.literatureReview;
         
+        // Check if this is using demo/fallback solutions
+        if (solutionsData.note) {
+          toast.warning(solutionsData.note);
+        }
+        
         // Set literature review data
         if (literatureData) {
           setLiteratureReview(literatureData);
@@ -125,21 +130,21 @@ const Index = () => {
           await updateProblemStatus(problem.id, 'completed');
           
         toast.success("Analysis complete! Generated " + frontendSolutions.length + " AI-powered solutions.");
-      } catch (error) {
-        console.error('Error generating solutions:', error);
-        
-        // Check if it's a quota error
-        if (error.message && error.message.includes('insufficient_quota')) {
-          toast.error("OpenAI API quota exceeded. Please check your billing details or try again later.");
-        } else if (error.message && error.message.includes('429')) {
-          toast.error("Rate limit exceeded. Please wait a moment and try again.");
-        } else {
-          toast.error("Failed to generate solutions. Please try again.");
+        } catch (error) {
+          console.error('Error generating solutions:', error);
+          
+          // Check if it's a quota error and show appropriate message
+          if (error.message && error.message.includes('insufficient_quota')) {
+            toast.error("Your OpenAI API has exceeded its quota. Please add credits to your OpenAI account or the system will use demo solutions.");
+          } else if (error.message && error.message.includes('429')) {
+            toast.error("OpenAI rate limit exceeded. Using demo solutions for now.");
+          } else {
+            toast.error("OpenAI unavailable. Generated demo solutions - add OpenAI credits for AI-powered analysis.");
+          }
+          
+          setIsProcessing(false);
+          setWorkflowStage('input');
         }
-        
-        setIsProcessing(false);
-        setWorkflowStage('input');
-      }
       
     } catch (error) {
       console.error('Error creating problem:', error);
