@@ -21,6 +21,13 @@ export interface Solution {
   category: string;
   estimatedImpact: string;
   timeframe: string;
+  researchSources?: string[];
+}
+
+export interface LiteratureReview {
+  searchTerms: string[];
+  keyFindings: string;
+  researchSources: string[];
 }
 
 const Index = () => {
@@ -28,6 +35,7 @@ const Index = () => {
   const [currentProblem, setCurrentProblem] = useState<Problem | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [solutions, setSolutions] = useState<Solution[]>([]);
+  const [literatureReview, setLiteratureReview] = useState<LiteratureReview | null>(null);
   const [workflowStage, setWorkflowStage] = useState<'input' | 'processing' | 'results'>('input');
 
   const handleProblemSubmit = async (problemDescription: string) => {
@@ -59,6 +67,12 @@ const Index = () => {
         }
 
         const generatedSolutions = solutionsData.solutions;
+        const literatureData = solutionsData.literatureReview;
+        
+        // Set literature review data
+        if (literatureData) {
+          setLiteratureReview(literatureData);
+        }
 
         // Save AI-generated solutions to database
         const dbSolutions = await Promise.all(
@@ -98,7 +112,8 @@ const Index = () => {
             category: categoryMap[sol.agent_type] || 'Innovation',
             estimatedImpact: `Potential high-impact solution (Score: ${sol.innovation_score})`,
             timeframe: sol.feasibility_score >= 80 ? "1-2 years" : 
-                      sol.feasibility_score >= 60 ? "2-4 years" : "3-5 years"
+                      sol.feasibility_score >= 60 ? "2-4 years" : "3-5 years",
+            researchSources: sol.researchSources || []
           };
         });
           
@@ -112,7 +127,16 @@ const Index = () => {
         toast.success("Analysis complete! Generated " + frontendSolutions.length + " AI-powered solutions.");
       } catch (error) {
         console.error('Error generating solutions:', error);
-        toast.error("Failed to generate solutions. Please try again.");
+        
+        // Check if it's a quota error
+        if (error.message && error.message.includes('insufficient_quota')) {
+          toast.error("OpenAI API quota exceeded. Please check your billing details or try again later.");
+        } else if (error.message && error.message.includes('429')) {
+          toast.error("Rate limit exceeded. Please wait a moment and try again.");
+        } else {
+          toast.error("Failed to generate solutions. Please try again.");
+        }
+        
         setIsProcessing(false);
         setWorkflowStage('input');
       }
@@ -127,6 +151,7 @@ const Index = () => {
     setWorkflowStage('input');
     setCurrentProblem(null);
     setSolutions([]);
+    setLiteratureReview(null);
     setIsProcessing(false);
   };
 
@@ -218,7 +243,7 @@ const Index = () => {
                 Analyze New Problem
               </Button>
             </div>
-            <SolutionsDashboard solutions={solutions} />
+            <SolutionsDashboard solutions={solutions} literatureReview={literatureReview} />
           </div>
         )}
       </div>

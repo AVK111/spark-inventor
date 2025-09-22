@@ -1,15 +1,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Solution } from "@/pages/Index";
-import { TrendingUp, DollarSign, Leaf, Clock, Target, ChevronRight } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { BookOpen, ExternalLink, TrendingUp, Leaf, Clock, DollarSign, ChevronRight } from "lucide-react";
+import { Solution, LiteratureReview } from "@/pages/Index";
 
 interface SolutionsDashboardProps {
   solutions: Solution[];
+  literatureReview?: LiteratureReview | null;
 }
 
-export const SolutionsDashboard = ({ solutions }: SolutionsDashboardProps) => {
+export const SolutionsDashboard = ({ solutions, literatureReview }: SolutionsDashboardProps) => {
   const sortedSolutions = [...solutions].sort((a, b) => b.overallScore - a.overallScore);
 
   const getScoreColor = (score: number) => {
@@ -38,18 +39,54 @@ export const SolutionsDashboard = ({ solutions }: SolutionsDashboardProps) => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <Card className="glass-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <Target className="h-8 w-8 text-primary" />
+    <div className="space-y-8">
+      {/* Literature Review Section */}
+      {literatureReview && (
+        <Card className="glass-card border-agent-retrieval/20">
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-agent-retrieval" />
+              Research Analysis & Literature Review
+            </h3>
+            <div className="space-y-4">
               <div>
-                <p className="text-2xl font-bold">{solutions.length}</p>
-                <p className="text-sm text-muted-foreground">Solutions Generated</p>
+                <h4 className="font-medium text-sm mb-2">Key Research Insights:</h4>
+                <p className="text-muted-foreground text-sm">{literatureReview.keyFindings}</p>
+              </div>
+              <div>
+                <h4 className="font-medium text-sm mb-2">Search Terms Used:</h4>
+                <div className="flex flex-wrap gap-2">
+                  {literatureReview.searchTerms.map((term, index) => (
+                    <Badge key={index} variant="secondary" className="text-xs">
+                      {term}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h4 className="font-medium text-sm mb-2">Research Sources Analyzed:</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-muted-foreground">
+                  {literatureReview.researchSources.map((source, index) => (
+                    <div key={index} className="flex items-start gap-2">
+                      <ExternalLink className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                      <span>{source}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+      )}
+      
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card className="glass-card">
+          <CardContent className="p-6 text-center">
+            <div className="text-3xl font-bold text-agent-generation mb-2">
+              {solutions.length}
+            </div>
+            <div className="text-sm text-muted-foreground">Total Solutions</div>
           </CardContent>
         </Card>
         
