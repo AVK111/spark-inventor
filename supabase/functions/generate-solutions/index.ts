@@ -45,7 +45,7 @@ For each solution, provide:
 1. A clear, compelling title (max 50 characters)
 2. A detailed description (2-3 sentences explaining the approach and implementation)
 3. A feasibility score (1-100, considering current technology and resources)
-4. A cost estimate (realistic budget needed, e.g., "$2.5M initial investment")
+4. A cost estimate (realistic budget needed, e.g., "2.5M initial investment")
 5. A sustainability score (1-100, environmental and long-term viability)
 6. An innovation score (1-100, how novel and creative the approach is)
 7. An agent type (choose from: "technology", "biotechnology", "social_innovation", "policy", "business_model")
@@ -66,7 +66,7 @@ Return your response as a valid JSON object with this structure:
     "keyFindings": "summary of key research insights",
     "researchSources": [list of 8-12 relevant academic/industry sources]
   }
-}
+}`;
 
     console.log('Calling OpenAI API...');
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
