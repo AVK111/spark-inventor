@@ -36,6 +36,7 @@ const Index = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [solutions, setSolutions] = useState<Solution[]>([]);
   const [literatureReview, setLiteratureReview] = useState<LiteratureReview | null>(null);
+  const [aiSource, setAiSource] = useState<string>('');
   const [workflowStage, setWorkflowStage] = useState<'input' | 'processing' | 'results'>('input');
 
   const handleProblemSubmit = async (problemDescription: string) => {
@@ -68,6 +69,10 @@ const Index = () => {
 
         const generatedSolutions = solutionsData.solutions;
         const literatureData = solutionsData.literatureReview;
+        const source = solutionsData.source || 'fallback';
+        
+        // Set AI source for display
+        setAiSource(source);
         
         // Check if this is using demo/fallback solutions
         if (solutionsData.note) {
@@ -157,6 +162,7 @@ const Index = () => {
     setCurrentProblem(null);
     setSolutions([]);
     setLiteratureReview(null);
+    setAiSource('');
     setIsProcessing(false);
   };
 
@@ -248,7 +254,11 @@ const Index = () => {
                 Analyze New Problem
               </Button>
             </div>
-            <SolutionsDashboard solutions={solutions} literatureReview={literatureReview} />
+            <SolutionsDashboard 
+              solutions={solutions} 
+              literatureReview={literatureReview} 
+              aiSource={aiSource}
+            />
           </div>
         )}
       </div>

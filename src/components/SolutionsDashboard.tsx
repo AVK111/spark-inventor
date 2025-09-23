@@ -2,15 +2,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { BookOpen, ExternalLink, TrendingUp, Leaf, Clock, DollarSign, ChevronRight } from "lucide-react";
+import { BookOpen, ExternalLink, TrendingUp, Leaf, Clock, DollarSign, ChevronRight, Bot } from "lucide-react";
 import { Solution, LiteratureReview } from "@/pages/Index";
 
 interface SolutionsDashboardProps {
   solutions: Solution[];
   literatureReview?: LiteratureReview | null;
+  aiSource?: string;
 }
 
-export const SolutionsDashboard = ({ solutions, literatureReview }: SolutionsDashboardProps) => {
+export const SolutionsDashboard = ({ solutions, literatureReview, aiSource }: SolutionsDashboardProps) => {
   const sortedSolutions = [...solutions].sort((a, b) => b.overallScore - a.overallScore);
 
   const getScoreColor = (score: number) => {
@@ -23,6 +24,32 @@ export const SolutionsDashboard = ({ solutions, literatureReview }: SolutionsDas
     if (score >= 8) return "bg-status-complete/10";
     if (score >= 6) return "bg-status-processing/10";
     return "bg-status-error/10";
+  };
+
+  const getSourceInfo = (source: string) => {
+    switch (source) {
+      case 'gemini':
+        return {
+          name: 'Google Gemini',
+          description: 'Real-time research & analysis',
+          color: 'bg-gradient-to-r from-blue-500 to-purple-600',
+          textColor: 'text-white'
+        };
+      case 'openai':
+        return {
+          name: 'OpenAI GPT',
+          description: 'AI-powered solutions',
+          color: 'bg-gradient-to-r from-green-500 to-teal-600',
+          textColor: 'text-white'
+        };
+      default:
+        return {
+          name: 'Demo Mode',
+          description: 'Sample solutions - Add API keys for real AI',
+          color: 'bg-gradient-to-r from-gray-400 to-gray-600',
+          textColor: 'text-white'
+        };
+    }
   };
 
   const getCategoryColor = (category: string) => {
@@ -38,8 +65,27 @@ export const SolutionsDashboard = ({ solutions, literatureReview }: SolutionsDas
     }
   };
 
+  const sourceInfo = getSourceInfo(aiSource || 'fallback');
+
   return (
     <div className="space-y-8">
+      {/* AI Source Indicator */}
+      <Card className="glass-card">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Bot className="h-6 w-6 text-muted-foreground" />
+              <div>
+                <p className="font-semibold">Analysis Powered By</p>
+                <p className="text-sm text-muted-foreground">{sourceInfo.description}</p>
+              </div>
+            </div>
+            <div className={`px-4 py-2 rounded-full ${sourceInfo.color} ${sourceInfo.textColor}`}>
+              <span className="text-sm font-semibold">{sourceInfo.name}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
       {/* Literature Review Section */}
       {literatureReview && (
         <Card className="glass-card border-agent-retrieval/20">

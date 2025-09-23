@@ -30,111 +30,207 @@ serve(async (req) => {
       throw new Error('Problem description is required');
     }
 
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openAIApiKey) {
-      console.log('No OpenAI API key found, using fallback solutions');
+    
+    // Prefer Gemini for real research, fallback to OpenAI, then mock data
+    if (geminiApiKey) {
+      console.log('Using Gemini API for real research data');
+      return await generateWithGemini(problemDescription, geminiApiKey);
+    } else if (openAIApiKey) {
+      console.log('Using OpenAI API');
+      return await generateWithOpenAI(problemDescription, openAIApiKey);
+    } else {
+      console.log('No API keys found, using fallback solutions');
       return generateFallbackSolutions(problemDescription);
     }
 
-    const prompt = `You are an expert innovation consultant with access to extensive research databases, academic literature, and industry reports. 
+// Gemini API integration for real research data
+async function generateWithGemini(problemDescription: string, geminiApiKey: string) {
+  const prompt = `You are an expert innovation consultant with real-time access to current research, academic papers, and industry data. 
 
 Problem: ${problemDescription}
 
-Based on your analysis of relevant research literature, academic papers, industry reports, and emerging technology trends, generate exactly 3 innovative solutions.
+Conduct real research and analysis on this problem, then generate exactly 3 innovative, evidence-based solutions. For each solution:
 
-For each solution, provide:
-1. A clear, compelling title (max 50 characters)
-2. A detailed description (2-3 sentences explaining the approach and implementation)
-3. A feasibility score (1-100, considering current technology and resources)
-4. A cost estimate (realistic budget needed, e.g., "2.5M initial investment")
-5. A sustainability score (1-100, environmental and long-term viability)
-6. An innovation score (1-100, how novel and creative the approach is)
-7. An agent type (choose from: "technology", "biotechnology", "social_innovation", "policy", "business_model")
-8. Key research sources (3-5 relevant academic papers, reports, or studies that informed this solution)
+1. Title (max 50 characters)
+2. Detailed description (2-3 sentences with specific implementation approach)
+3. Feasibility score (1-100, based on current technology readiness)
+4. Cost estimate (realistic budget, e.g., "500K initial investment") 
+5. Sustainability score (1-100, environmental and long-term impact)
+6. Innovation score (1-100, novelty and breakthrough potential)
+7. Agent type: "technology", "biotechnology", "social_innovation", "policy", or "business_model"
+8. Real research sources (3-5 actual studies, papers, or reports you found)
 
 Focus on solutions that are:
-- Innovative yet practical
-- Scalable and impactful
-- Based on current or emerging technologies
-- Addressing root causes, not just symptoms
-- Grounded in recent research and evidence
+- Based on real, current research and data
+- Technologically feasible with today's capabilities
+- Addressing root causes with measurable impact
+- Scalable and economically viable
 
-Return your response as a valid JSON object with this structure:
+Include a literature review section with:
+- Search terms you used
+- Key research insights discovered
+- List of 8-12 real academic/industry sources
+
+Respond in JSON format:
 {
-  "solutions": [array of 3 solution objects],
+  "solutions": [3 solution objects with all fields],
   "literatureReview": {
-    "searchTerms": [relevant search terms used],
-    "keyFindings": "summary of key research insights",
-    "researchSources": [list of 8-12 relevant academic/industry sources]
+    "searchTerms": [actual search terms],
+    "keyFindings": "real research insights summary", 
+    "researchSources": [real source citations]
   }
 }`;
 
-    console.log('Calling OpenAI API...');
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  try {
+    console.log('Calling Gemini API for real research...');
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert innovation consultant. Always respond with valid JSON containing exactly 3 solution objects with the specified structure.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: 2000,
-        temperature: 0.8,
-        response_format: { type: "json_object" }
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 4000,
+        }
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI API error:', response.status, errorText);
-      
-      // If quota exceeded or rate limited, use fallback
-      if (response.status === 429) {
-        console.log('OpenAI quota exceeded, using fallback solutions');
-        return generateFallbackSolutions(problemDescription);
-      }
-      
-      throw new Error(`OpenAI API error: ${response.status} ${errorText}`);
+      console.error('Gemini API error:', response.status, errorText);
+      throw new Error(`Gemini API error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('OpenAI response received');
+    console.log('Gemini response received');
 
-    let solutions: Solution[];
-    let literatureReview: any;
-    
-    try {
-      const content = data.choices[0].message.content;
-      const parsed = JSON.parse(content);
-      
-      // Handle if the response is wrapped in an object with a "solutions" key
-      solutions = Array.isArray(parsed) ? parsed : (parsed.solutions || []);
-      literatureReview = parsed.literatureReview || null;
-      
-      if (!Array.isArray(solutions) || solutions.length === 0) {
-        throw new Error('Invalid response format from OpenAI');
-      }
-      
-      console.log(`Generated ${solutions.length} solutions`);
-    } catch (parseError) {
-      console.error('Error parsing OpenAI response:', parseError);
-      console.error('Raw content:', data.choices[0].message.content);
-      throw new Error('Failed to parse OpenAI response');
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      throw new Error('Invalid Gemini response structure');
     }
 
-    return new Response(JSON.stringify({ solutions, literatureReview }), {
+    const content = data.candidates[0].content.parts[0].text;
+    
+    // Extract JSON from response (Gemini sometimes includes extra text)
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No valid JSON found in Gemini response');
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    const solutions = parsed.solutions || [];
+    const literatureReview = parsed.literatureReview || null;
+
+    if (!Array.isArray(solutions) || solutions.length === 0) {
+      throw new Error('No valid solutions generated by Gemini');
+    }
+
+    console.log(`Gemini generated ${solutions.length} research-based solutions`);
+
+    return new Response(JSON.stringify({ 
+      solutions, 
+      literatureReview,
+      source: 'gemini'
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+
+  } catch (error) {
+    console.error('Gemini API failed:', error);
+    // Fallback to OpenAI if available
+    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (openAIApiKey) {
+      console.log('Falling back to OpenAI...');
+      return await generateWithOpenAI(problemDescription, openAIApiKey);
+    }
+    // Final fallback to mock data
+    return generateFallbackSolutions(problemDescription);
+  }
+}
+
+// OpenAI integration (fallback)
+async function generateWithOpenAI(problemDescription: string, openAIApiKey: string) {
+  const prompt = `You are an expert innovation consultant. Generate exactly 3 innovative solutions for: ${problemDescription}
+
+Return JSON format:
+{
+  "solutions": [3 solution objects with title, description, feasibilityScore, costEstimate, sustainabilityScore, innovationScore, agentType],
+  "literatureReview": {
+    "searchTerms": [search terms],
+    "keyFindings": "research summary",
+    "researchSources": [academic sources]
+  }
+}`;
+
+  console.log('Calling OpenAI API...');
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openAIApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an expert innovation consultant. Always respond with valid JSON.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: 2000,
+      temperature: 0.8,
+      response_format: { type: "json_object" }
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('OpenAI API error:', response.status, errorText);
+    
+    if (response.status === 429) {
+      console.log('OpenAI quota exceeded, using fallback solutions');
+      return generateFallbackSolutions(problemDescription);
+    }
+    
+    throw new Error(`OpenAI API error: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  console.log('OpenAI response received');
+
+  const content = data.choices[0].message.content;
+  const parsed = JSON.parse(content);
+  
+  const solutions = Array.isArray(parsed) ? parsed : (parsed.solutions || []);
+  const literatureReview = parsed.literatureReview || null;
+  
+  if (!Array.isArray(solutions) || solutions.length === 0) {
+    throw new Error('Invalid response format from OpenAI');
+  }
+  
+  console.log(`Generated ${solutions.length} solutions`);
+
+  return new Response(JSON.stringify({ 
+    solutions, 
+    literatureReview,
+    source: 'openai'
+  }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
 
   } catch (error) {
     console.error('Error in generate-solutions function:', error);
