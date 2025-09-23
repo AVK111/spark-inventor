@@ -16,35 +16,6 @@ interface Solution {
   agentType: string;
 }
 
-serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    const { problemDescription } = await req.json();
-    console.log('Processing problem:', problemDescription);
-
-    if (!problemDescription) {
-      throw new Error('Problem description is required');
-    }
-
-    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    
-    // Prefer Gemini for real research, fallback to OpenAI, then mock data
-    if (geminiApiKey) {
-      console.log('Using Gemini API for real research data');
-      return await generateWithGemini(problemDescription, geminiApiKey);
-    } else if (openAIApiKey) {
-      console.log('Using OpenAI API');
-      return await generateWithOpenAI(problemDescription, openAIApiKey);
-    } else {
-      console.log('No API keys found, using fallback solutions');
-      return generateFallbackSolutions(problemDescription);
-    }
-
 // Gemini API integration for real research data
 async function generateWithGemini(problemDescription: string, geminiApiKey: string) {
   const prompt = `You are an expert innovation consultant with real-time access to current research, academic papers, and industry data. 
@@ -171,94 +142,74 @@ Return JSON format:
   }
 }`;
 
-  console.log('Calling OpenAI API...');
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${openAIApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an expert innovation consultant. Always respond with valid JSON.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      max_tokens: 2000,
-      temperature: 0.8,
-      response_format: { type: "json_object" }
-    }),
-  });
+  try {
+    console.log('Calling OpenAI API...');
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert innovation consultant. Always respond with valid JSON.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_tokens: 2000,
+        temperature: 0.8,
+        response_format: { type: "json_object" }
+      }),
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('OpenAI API error:', response.status, errorText);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('OpenAI API error:', response.status, errorText);
+      
+      if (response.status === 429) {
+        console.log('OpenAI quota exceeded, using fallback solutions');
+        return generateFallbackSolutions(problemDescription);
+      }
+      
+      throw new Error(`OpenAI API error: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('OpenAI response received');
+
+    const content = data.choices[0].message.content;
+    const parsed = JSON.parse(content);
     
-    if (response.status === 429) {
-      console.log('OpenAI quota exceeded, using fallback solutions');
-      return generateFallbackSolutions(problemDescription);
+    const solutions = Array.isArray(parsed) ? parsed : (parsed.solutions || []);
+    const literatureReview = parsed.literatureReview || null;
+    
+    if (!Array.isArray(solutions) || solutions.length === 0) {
+      throw new Error('Invalid response format from OpenAI');
     }
     
-    throw new Error(`OpenAI API error: ${response.status} ${errorText}`);
-  }
+    console.log(`Generated ${solutions.length} solutions`);
 
-  const data = await response.json();
-  console.log('OpenAI response received');
-
-  const content = data.choices[0].message.content;
-  const parsed = JSON.parse(content);
-  
-  const solutions = Array.isArray(parsed) ? parsed : (parsed.solutions || []);
-  const literatureReview = parsed.literatureReview || null;
-  
-  if (!Array.isArray(solutions) || solutions.length === 0) {
-    throw new Error('Invalid response format from OpenAI');
-  }
-  
-  console.log(`Generated ${solutions.length} solutions`);
-
-  return new Response(JSON.stringify({ 
-    solutions, 
-    literatureReview,
-    source: 'openai'
-  }), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
-}
+    return new Response(JSON.stringify({ 
+      solutions, 
+      literatureReview,
+      source: 'openai'
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
 
   } catch (error) {
-    console.error('Error in generate-solutions function:', error);
-    
-    // If OpenAI fails for any reason, try fallback
-    if (error.message.includes('OpenAI') || error.message.includes('API')) {
-      try {
-        const { problemDescription } = await req.json();
-        return generateFallbackSolutions(problemDescription);
-      } catch (fallbackError) {
-        console.error('Fallback also failed:', fallbackError);
-      }
-    }
-    
-    return new Response(
-      JSON.stringify({ 
-        error: error.message,
-        details: 'Failed to generate solutions. Please check your OpenAI API credits or try again later.'
-      }), 
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    console.error('OpenAI API failed:', error);
+    return generateFallbackSolutions(problemDescription);
   }
-});
+}
 
-// Fallback function to generate mock solutions when OpenAI is unavailable
+// Fallback function to generate mock solutions when APIs are unavailable
 function generateFallbackSolutions(problemDescription: string) {
   console.log('Generating fallback solutions for:', problemDescription);
   
@@ -313,9 +264,54 @@ function generateFallbackSolutions(problemDescription: string) {
   return new Response(JSON.stringify({ 
     solutions: fallbackSolutions, 
     literatureReview,
-    note: "Demo solutions generated - OpenAI API unavailable. Please add credits to your OpenAI account for AI-powered solutions."
+    note: "Demo solutions generated - Add API keys for real AI-powered analysis.",
+    source: 'fallback'
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 }
+
+serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { problemDescription } = await req.json();
+    console.log('Processing problem:', problemDescription);
+
+    if (!problemDescription) {
+      throw new Error('Problem description is required');
+    }
+
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    
+    // Prefer Gemini for real research, fallback to OpenAI, then mock data
+    if (geminiApiKey) {
+      console.log('Using Gemini API for real research data');
+      return await generateWithGemini(problemDescription, geminiApiKey);
+    } else if (openAIApiKey) {
+      console.log('Using OpenAI API');
+      return await generateWithOpenAI(problemDescription, openAIApiKey);
+    } else {
+      console.log('No API keys found, using fallback solutions');
+      return generateFallbackSolutions(problemDescription);
+    }
+
+  } catch (error) {
+    console.error('Error in generate-solutions function:', error);
+    
+    return new Response(
+      JSON.stringify({ 
+        error: error.message,
+        details: 'Failed to generate solutions. Please check your API credentials or try again later.'
+      }), 
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
 });
