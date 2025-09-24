@@ -201,7 +201,7 @@ Respond with exactly 3 solutions in this JSON format:
   ]
 }`;
 
-  try:
+  try {
     console.log('Executing RAG query with OpenAI API...');
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
