@@ -1,8 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { BookOpen, ExternalLink, TrendingUp, Leaf, Clock, DollarSign, ChevronRight, Bot } from "lucide-react";
+import { BookOpen, ExternalLink, TrendingUp, Leaf, Clock, ChevronRight, Bot, Brain } from "lucide-react";
 import { Solution, LiteratureReview } from "@/pages/Index";
 
 interface SolutionsDashboardProps {
@@ -12,15 +11,22 @@ interface SolutionsDashboardProps {
 }
 
 export const SolutionsDashboard = ({ solutions, literatureReview, aiSource }: SolutionsDashboardProps) => {
-  const sortedSolutions = [...solutions].sort((a, b) => b.overallScore - a.overallScore);
+  const getScoreValue = (scoreStr: string): number => {
+    const match = scoreStr.match(/(\d+)\/\d+/);
+    return match ? parseInt(match[1]) : 0;
+  };
 
-  const getScoreColor = (score: number) => {
+  const sortedSolutions = [...solutions].sort((a, b) => getScoreValue(b.score) - getScoreValue(a.score));
+
+  const getScoreColor = (scoreStr: string) => {
+    const score = getScoreValue(scoreStr);
     if (score >= 8) return "text-status-complete";
     if (score >= 6) return "text-status-processing";
     return "text-status-error";
   };
 
-  const getScoreBackground = (score: number) => {
+  const getScoreBackground = (scoreStr: string) => {
+    const score = getScoreValue(scoreStr);
     if (score >= 8) return "bg-status-complete/10";
     if (score >= 6) return "bg-status-processing/10";
     return "bg-status-error/10";
@@ -30,51 +36,41 @@ export const SolutionsDashboard = ({ solutions, literatureReview, aiSource }: So
     switch (source) {
       case 'gemini':
         return {
-          name: 'Google Gemini',
-          description: 'Real-time research & analysis',
-          color: 'bg-gradient-to-r from-blue-500 to-purple-600',
-          textColor: 'text-white'
+          name: 'Gemini AI',
+          description: 'Research-backed analysis using Google\'s Gemini model with real-time data access',
+          color: 'bg-gradient-to-r from-blue-500/20 to-purple-500/20',
+          textColor: 'text-blue-600 dark:text-blue-400',
+          icon: '🧠'
         };
       case 'openai':
         return {
           name: 'OpenAI GPT',
-          description: 'AI-powered solutions',
-          color: 'bg-gradient-to-r from-green-500 to-teal-600',
-          textColor: 'text-white'
+          description: 'Advanced AI analysis powered by OpenAI\'s language models',
+          color: 'bg-gradient-to-r from-green-500/20 to-teal-500/20',
+          textColor: 'text-green-600 dark:text-green-400',
+          icon: '⚡'
         };
       default:
         return {
           name: 'Demo Mode',
-          description: 'Sample solutions - Add API keys for real AI',
-          color: 'bg-gradient-to-r from-gray-400 to-gray-600',
-          textColor: 'text-white'
+          description: 'Sample solutions for demonstration - Connect AI for real analysis',
+          color: 'bg-gradient-to-r from-orange-500/20 to-red-500/20',
+          textColor: 'text-orange-600 dark:text-orange-400',
+          icon: '🎭'
         };
-    }
-  };
-
-  const getCategoryColor = (category: string) => {
-    switch (category.toLowerCase()) {
-      case 'technology':
-        return 'bg-agent-generation/20 text-agent-generation border-agent-generation/30';
-      case 'biotechnology':
-        return 'bg-agent-synthesis/20 text-agent-synthesis border-agent-synthesis/30';
-      case 'social innovation':
-        return 'bg-agent-evaluation/20 text-agent-evaluation border-agent-evaluation/30';
-      default:
-        return 'bg-muted text-muted-foreground';
     }
   };
 
   const sourceInfo = getSourceInfo(aiSource || 'fallback');
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* AI Source Indicator */}
-      <Card className="glass-card">
+      <Card className="glass-card border-primary/20">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Bot className="h-6 w-6 text-muted-foreground" />
+              <Bot className="h-6 w-6 text-primary" />
               <div>
                 <p className="font-semibold">Analysis Powered By</p>
                 <p className="text-sm text-muted-foreground">{sourceInfo.description}</p>
@@ -86,6 +82,7 @@ export const SolutionsDashboard = ({ solutions, literatureReview, aiSource }: So
           </div>
         </CardContent>
       </Card>
+
       {/* Literature Review Section */}
       {literatureReview && (
         <Card className="glass-card border-agent-retrieval/20">
@@ -142,7 +139,7 @@ export const SolutionsDashboard = ({ solutions, literatureReview, aiSource }: So
               <TrendingUp className="h-8 w-8 text-status-complete" />
               <div>
                 <p className="text-2xl font-bold">
-                  {Math.max(...solutions.map(s => s.overallScore)).toFixed(1)}
+                  {Math.max(...solutions.map(s => getScoreValue(s.score))).toFixed(0)}/10
                 </p>
                 <p className="text-sm text-muted-foreground">Highest Score</p>
               </div>
@@ -156,9 +153,9 @@ export const SolutionsDashboard = ({ solutions, literatureReview, aiSource }: So
               <Leaf className="h-8 w-8 text-agent-synthesis" />
               <div>
                 <p className="text-2xl font-bold">
-                  {Math.max(...solutions.map(s => s.sustainabilityScore)).toFixed(1)}
+                  {(solutions.reduce((sum, s) => sum + getScoreValue(s.score), 0) / solutions.length).toFixed(1)}/10
                 </p>
-                <p className="text-sm text-muted-foreground">Best Sustainability</p>
+                <p className="text-sm text-muted-foreground">Average Score</p>
               </div>
             </div>
           </CardContent>
@@ -169,8 +166,8 @@ export const SolutionsDashboard = ({ solutions, literatureReview, aiSource }: So
             <div className="flex items-center gap-3">
               <Clock className="h-8 w-8 text-agent-retrieval" />
               <div>
-                <p className="text-2xl font-bold">8s</p>
-                <p className="text-sm text-muted-foreground">Analysis Time</p>
+                <p className="text-2xl font-bold">RAG</p>
+                <p className="text-sm text-muted-foreground">Analysis Mode</p>
               </div>
             </div>
           </CardContent>
@@ -180,86 +177,60 @@ export const SolutionsDashboard = ({ solutions, literatureReview, aiSource }: So
       {/* Solutions List */}
       <div className="space-y-4">
         {sortedSolutions.map((solution, index) => (
-          <Card key={solution.id} className="glass-card hover:scale-[1.02] transition-all duration-300">
+          <Card key={solution.solution_id} className="glass-card hover:scale-[1.02] transition-all duration-300">
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="space-y-2">
                   <div className="flex items-center gap-3">
                     <Badge variant="outline" className="text-sm font-bold">
-                      #{index + 1}
+                      Solution #{solution.solution_id}
                     </Badge>
-                    <Badge className={getCategoryColor(solution.category)}>
-                      {solution.category}
+                    <Badge className="bg-agent-generation/20 text-agent-generation border-agent-generation/30">
+                      RAG Solution
                     </Badge>
                   </div>
-                  <CardTitle className="text-xl">{solution.title}</CardTitle>
+                  <CardTitle className="text-xl">AI-Generated Solution #{solution.solution_id}</CardTitle>
                 </div>
-                <div className={`text-right p-3 rounded-lg ${getScoreBackground(solution.overallScore)}`}>
-                  <p className={`text-2xl font-bold ${getScoreColor(solution.overallScore)}`}>
-                    {solution.overallScore.toFixed(1)}
+                <div className={`text-right p-3 rounded-lg ${getScoreBackground(solution.score)}`}>
+                  <p className={`text-2xl font-bold ${getScoreColor(solution.score)}`}>
+                    {solution.score}
                   </p>
-                  <p className="text-xs text-muted-foreground">Overall Score</p>
+                  <p className="text-xs text-muted-foreground">RAG Score</p>
                 </div>
               </div>
             </CardHeader>
             
             <CardContent className="space-y-6">
-              <p className="text-muted-foreground leading-relaxed">
-                {solution.description}
-              </p>
+              <div>
+                <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+                  <Brain className="h-4 w-4 text-agent-generation" />
+                  Step-by-Step Solution:
+                </h4>
+                <p className="text-muted-foreground leading-relaxed">
+                  {solution.explanation}
+                </p>
+              </div>
               
-              {/* Score Breakdown */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4" />
-                      Feasibility
-                    </span>
-                    <span className="text-sm font-bold">{solution.feasibilityScore.toFixed(1)}</span>
-                  </div>
-                  <Progress value={solution.feasibilityScore * 10} />
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium flex items-center gap-2">
-                      <DollarSign className="h-4 w-4" />
-                      Cost Efficiency
-                    </span>
-                    <span className="text-sm font-bold">{solution.costScore.toFixed(1)}</span>
-                  </div>
-                  <Progress value={solution.costScore * 10} />
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium flex items-center gap-2">
-                      <Leaf className="h-4 w-4" />
-                      Sustainability
-                    </span>
-                    <span className="text-sm font-bold">{solution.sustainabilityScore.toFixed(1)}</span>
-                  </div>
-                  <Progress value={solution.sustainabilityScore * 10} />
+              {/* References Section */}
+              <div>
+                <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-agent-retrieval" />
+                  Research References:
+                </h4>
+                <div className="grid grid-cols-1 gap-2">
+                  {solution.references.map((ref, refIndex) => (
+                    <div key={refIndex} className="flex items-start gap-2 p-2 bg-muted/30 rounded-md">
+                      <ExternalLink className="h-3 w-3 mt-1 flex-shrink-0 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">{ref}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
               
-              {/* Impact and Timeline */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Estimated Impact</p>
-                  <p className="text-sm font-semibold">{solution.estimatedImpact}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Implementation Timeframe</p>
-                  <p className="text-sm font-semibold">{solution.timeframe}</p>
-                </div>
-              </div>
-              
-              <div className="flex justify-end">
-                <Button variant="neural" size="sm">
-                  View Detailed Analysis
-                  <ChevronRight className="h-4 w-4 ml-1" />
+              <div className="flex justify-end pt-4 border-t border-border/50">
+                <Button variant="outline" size="sm" className="gap-2">
+                  View Analysis Details
+                  <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
             </CardContent>

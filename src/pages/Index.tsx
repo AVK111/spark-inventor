@@ -11,17 +11,10 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface Solution {
-  id: string;
-  title: string;
-  description: string;
-  feasibilityScore: number;
-  costScore: number;
-  sustainabilityScore: number;
-  overallScore: number;
-  category: string;
-  estimatedImpact: string;
-  timeframe: string;
-  researchSources?: string[];
+  solution_id: number;
+  score: string;
+  explanation: string;
+  references: string[];
 }
 
 export interface LiteratureReview {
@@ -84,56 +77,21 @@ const Index = () => {
           setLiteratureReview(literatureData);
         }
 
-        // Save AI-generated solutions to database
-        const dbSolutions = await Promise.all(
-          generatedSolutions.map((sol: any) => 
-            createSolution(
-              problem.id,
-              sol.title,
-              sol.description,
-              sol.feasibilityScore,
-              sol.costEstimate,
-              sol.sustainabilityScore,
-              sol.innovationScore,
-              sol.agentType
-            )
-          )
-        );
-
-        // Convert to frontend format
-        const frontendSolutions: Solution[] = dbSolutions.map((sol, index) => {
-          const categoryMap: Record<string, string> = {
-            'technology': 'Technology',
-            'biotechnology': 'Biotechnology', 
-            'social_innovation': 'Social Innovation',
-            'policy': 'Policy',
-            'business_model': 'Business Model'
-          };
-
-          return {
-            id: sol.id,
-            title: sol.title,
-            description: sol.description,
-            feasibilityScore: sol.feasibility_score / 10,
-            costScore: sol.feasibility_score >= 80 ? 9.2 : 
-                      sol.feasibility_score >= 70 ? 8.0 : 6.5,
-            sustainabilityScore: sol.sustainability_score / 10,
-            overallScore: (sol.feasibility_score + sol.sustainability_score + sol.innovation_score) / 30,
-            category: categoryMap[sol.agent_type] || 'Innovation',
-            estimatedImpact: `Potential high-impact solution (Score: ${sol.innovation_score})`,
-            timeframe: sol.feasibility_score >= 80 ? "1-2 years" : 
-                      sol.feasibility_score >= 60 ? "2-4 years" : "3-5 years",
-            researchSources: sol.researchSources || []
-          };
-        });
+        // Convert API response to frontend format
+        const frontendSolutions: Solution[] = generatedSolutions.map((sol: any) => ({
+          solution_id: sol.solution_id,
+          score: sol.score,
+          explanation: sol.explanation,
+          references: sol.references || []
+        }));
           
-          setSolutions(frontendSolutions);
-          setIsProcessing(false);
-          setWorkflowStage('results');
-          
-          // Update problem status to completed
-          await updateProblemStatus(problem.id, 'completed');
-          
+        setSolutions(frontendSolutions);
+        setIsProcessing(false);
+        setWorkflowStage('results');
+        
+        // Update problem status to completed
+        await updateProblemStatus(problem.id, 'completed');
+        
         toast.success("Analysis complete! Generated " + frontendSolutions.length + " AI-powered solutions.");
         } catch (error) {
           console.error('Error generating solutions:', error);
